@@ -1,4 +1,4 @@
-import time, copy, os
+import time, copy, os, sys
 import sumolib, traci
 import pickle 
 import subprocess
@@ -108,7 +108,7 @@ class sumo_dcarp():
                 gc.remove_vehicle(vid)
     
     @classmethod
-    def reschedule(self, scenario, instance):
+    def reschedule(self, scenario, instance, info_path="", added_tasks=[]):
         global disflags, fs, edge_list, edge_property, task_candidate_set, version
         # determine which tasks have been served first.
         served_tasks = {}
@@ -169,8 +169,8 @@ class sumo_dcarp():
             
         fs.complete()
 
-        added_tasks = []
-        if ADD_TASK_FLAG and instance <= 5:
+        if ADD_TASK_FLAG and instance <= 5 and version == "dynamic":
+            added_tasks = []
             # according to road's properties to add tasks
             # 1. filter the edges which have not been tasks
             for edge_idx in task_candidate_set[:]:
@@ -190,6 +190,8 @@ class sumo_dcarp():
                 # added_tasks = np.random.choice(task_candidate_set, added_tasks_num, replace=False)
                 shuffel_index = np.random.permutation(len(task_candidate_set))
                 for idx in shuffel_index:
+                    if (len(added_tasks) == added_tasks_num):
+                        break
                     new_task = task_candidate_set[idx]
                     edge_name = edge_list[new_task]
                     # if edge_name in ["28391756#0", "-40701185", "-114277935#1", "-64226715#3", "-23045780#1"]:
@@ -198,13 +200,21 @@ class sumo_dcarp():
                     serv_cost = rr.travelTime
                     if serv_cost > 1:
                         added_tasks.append(new_task)
-                    if (len(added_tasks) == added_tasks_num):
-                        break
+                    
             else:
                 print("No task can be added!")
             for new_task in added_tasks:
                 edge_property[edge_list[new_task]]["Task"] = True
-
+            
+            info_path.write("t{0},{1}".format(instance, traci.simulation.getTime()))
+            for new_task in added_tasks:
+                info_path.write(",{0}".format(new_task))
+            info_path.write("\n")
+        
+        if version == "static":
+            # the added tasks is input
+            pass
+        
 
         if version == "dynamic":
             folder = "xml/scenario{0}_instance{1}_D".format(scenario, instance)
@@ -224,13 +234,13 @@ class sumo_dcarp():
                 sumo_dcarp.duaroute_cal_route_cost(folder, added_tasks)
 
                 # save the current solution for local search
-                remain_tasks_num = sumo_dcarp.parse_tasks_seq(scenario, instance, added_tasks)
+                remain_tasks_num = sumo_dcarp.parse_tasks_seq(folder, scenario, instance, added_tasks)
 
             if remain_tasks_num > 3:
                 # call C program (local search)
                 # print("Stop here.")
                 # exit(0)
-                subprocess.call([r'./dcarp-sumo.exe', '-s', str(scenario), '-i', str(instance)])
+                subprocess.call([r'./dcarp-sumo.exe', '-s', str(scenario), '-i', str(instance), '-v', version])
 
                 # load new solution and assign to the vehicle
                 sumo_dcarp.load_new_schedule(solution_path)
@@ -299,7 +309,7 @@ class sumo_dcarp():
         subprocess.call(["duarouter","--route-files", folder+"/trips.xml","--net-file","scenario/DCC.net.xml","--weight-files",folder+"/weights.xml","--bulk-routing","true", "--output-file",folder+"/result.rou.xml"])
 
     @classmethod
-    def parse_tasks_seq(self, scenario, instance, added_tasks):
+    def parse_tasks_seq(self, folder, scenario, instance, added_tasks):
         global fs,net
         root = ET.Element('info', {'scenario': str(scenario), 'instance':str(instance)})
         depot_from_node = net.getEdge(depot_out.edge).getFromNode().getID()
@@ -347,7 +357,6 @@ class sumo_dcarp():
                 ET.SubElement(rt,'task', {'id':str(k), 'edge': tsk_id, 'from_node': from_node, 'from_index':str(node_dict[from_node]), 'to_node':to_node,'to_index': str(node_dict[to_node]), 'demand':str(tsk_demand), 'id_index':str(edge_dict[tsk_id]), 'vt':vt})
 
         tree=ET.ElementTree(root)
-        folder = "xml/scenario{0}_instance{1}".format(scenario, instance)
         tree.write(folder+"/solution.xml")
         return remain_tasks_num
 
@@ -560,8 +569,8 @@ class DCARPListener(traci.StepListener):
                 self.instance += 1
                 print("scenario: ", self.scenario, "instance: ", self.instance, "current time:", t_now)
                 #save the time for rescheduling for CARP without dynamic optimization
-                self.dynamic_time.write("t{0},{1}\n".format(self.instance, t_now))
-                sumo_dcarp.reschedule(self.scenario, self.instance)
+                # self.dynamic_time.write("t{0},{1}\n".format(self.instance, t_now))
+                sumo_dcarp.reschedule(self.scenario, self.instance, info_path=self.dynamic_time)
 
                 # for vid in gc.vehicles:
                 #     route_edges_nv1 = traci.vehicle.getRoute(vid)
@@ -585,7 +594,6 @@ class DCARPListener(traci.StepListener):
             route_edges = traci.vehicle.getRoute(vid)
             curr_idx = traci.vehicle.getRouteIndex(vid)
             vcost = 0
-            vcost1 = 0
             for eid in route_edges[curr_idx+1:]:
                 vcost += float(traci.vehicle.getParameter(vid, "device.rerouting.edge:"+eid))
                 # vcost1 += traci.edge.getAdaptedTraveltime(eid, traci.simulation.getTime()-2)
@@ -612,27 +620,76 @@ class SCARPListener(traci.StepListener):
     
     def __init__(self, scn_idx) -> None:
         self.count = 0
+        self.flag1 = True
+        self.flag2 = False
         self.scenario = scn_idx
         self.instance = 0
+        self.timepoint = []
+        self.new_tasks = []
         self.load_added_tasks_time(scn_idx=scn_idx)
+        
         
     def load_added_tasks_time(self, scn_idx):
         with open("xml/timepoint"+str(1)+".txt", 'r') as f:
-            self.added_tasks_time_points = [int(t.strip().split(',')[1]) for t in f.readlines()]
-        
+            # self.added_tasks_time_points = [float(t.strip().split(',')[1]) for t in f.readlines()]
+            ll = f.readlines()
+            for t in ll:
+                info = t.strip().split(',')
+                self.timepoint.append(float(info[1]))
+                self.new_tasks.append([int(x) for x in info[2:-1]])
+                # self.added_tasks_info[timepoint] = new_tasks
 
-    def step(self, t=0): # added tasks one by one
-        self.count += 1
+    # def step(self, t=0): # added tasks one by one
+    #     self.count += 1
+    #     hidden_served_task()
+    #     # print(self.count)
+    #     if self.count <= 200:
+    #         return True
+        
+    #     # added tasks and insert tasks
+    #     t_now = traci.simulation.getTime()
+    #     if (t_now in self.added_tasks_info):
+    #         self.instance += 1
+    #         sumo_dcarp.reschedule(self.scenario, self.instance, added_tasks=self.new_tasks)
+
+    #     return True
+
+    def step(self, t=0.0):
+        remove_return_vehicle()
         hidden_served_task()
-        # print(self.count)
-        if self.count <= 200:
+        # accumulate cost used
+
+        if self.flag1: # flag1 is used to control if step into the following condition
+            self.flag2 = is_all_start()
+            if self.flag2:
+                # calculate the distanc and distance flag
+                # calculate the distance of each task to the incoming depot to help calculate tasks which have been served
+                set_task_dis_flag1()
+                self.flag1 = False
+            else: # it still has the vehicle which has not started, so we need to wait
+                return True
+        
+        t_now = traci.simulation.getTime()
+        if self.instance >= len(self.timepoint):
             return True
         
-        # added tasks and insert tasks
-        t_now = traci.simulation.getTime()
-        if (t_now in self.added_tasks_time_points):
+        # flag2 is used to refelect if all vehicles have started
+        if self.flag2 and t_now >= self.timepoint[self.instance]:
+            if not is_all_not_in_juction():
+                self.count -= 1
+                return True
+            t_now = traci.simulation.getTime()
+            print("scenario: ", self.scenario, "instance: ", self.instance, "current time:", t_now)
+            sumo_dcarp.reschedule(self.scenario, self.instance+1, added_tasks=self.new_tasks[self.instance])
             self.instance += 1
-            sumo_dcarp.reschedule(self.scenario, self.instance)
+
+            # for vid in gc.vehicles:
+            #     route_edges_nv1 = traci.vehicle.getRoute(vid)
+            #     self.net_fig, self.net_ax = route_visualization(route_edges_nv1, fig=self.net_fig, ax=self.net_ax)
+            #     self.net_fig.savefig("output/img/{0}_{1}.png".format(vid, self.instance), dpi=600)
+
+            self.flag1 = True
+            self.flag2 = False
 
         return True
 
@@ -686,6 +743,14 @@ for edge_name in edge_dict:
 #     raise ValueError("please input scenario index")
 # scenario = int(sys.argv[1])
 
+version = "static"
+# try:
+#     version = sys.argv[1]
+#     print("version:", version)
+# except:
+#     raise Exception('Lack of the version of scheduling: dynamic or static?')
+
+
 scenario = 1
 scenario_file = "dcarp/scenario{0}.xml".format(scenario)
 tree = ET.ElementTree(file=scenario_file)
@@ -738,8 +803,12 @@ fs, disflags = sumo_dcarp_init.init(scenario_file)
 
 
 # the above is the initial process
-version = "dynamic"
-listener = DCARPListener(scenario) # scenario index
+# version = "dynamic"
+if version == "dynamic":
+    listener = DCARPListener(scenario) # scenario index
+
+if version == "static":
+    listener = SCARPListener(scenario)
 # version = "static"
 # listener = SCARPListener(scenario)
 

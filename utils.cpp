@@ -16,7 +16,16 @@ void init(Task *inst_tasks, CARPInd *solution)
     const char* arc_id;
 
     char path0[50];
-    sprintf(path0, "xml/scenario%d_instance%d/solution.xml", scenario_idx, instance_idx);
+    if (strcmp(version, "dynamic") == 0)
+    {
+        sprintf(path0, "xml/scenario%d_instance%d_D/solution.xml", scenario_idx, instance_idx);
+    }
+    if (strcmp(version, "static") == 0)
+    {
+        sprintf(path0, "xml/scenario%d_instance%d_S/solution.xml", scenario_idx, instance_idx);
+    }   
+
+
     XMLDocument doc;
     doc.LoadFile(path0);
     XMLElement* info = doc.FirstChildElement( "info" );
@@ -250,8 +259,17 @@ void init(Task *inst_tasks, CARPInd *solution)
 void construct_edge_node_map(std::map<std::string, Arc> m)
 {
     char path[50], path1[50];
-    sprintf(path, "xml/scenario%d_instance%d/result.rou.alt.xml", scenario_idx, instance_idx);
-    sprintf(path1, "xml/scenario%d_instance%d/trips.xml", scenario_idx, instance_idx);
+    if (strcmp(version, "dynamic") == 0)
+    {
+        sprintf(path, "xml/scenario%d_instance%d_D/result.rou.alt.xml", scenario_idx, instance_idx);
+        sprintf(path1, "xml/scenario%d_instance%d_D/trips.xml", scenario_idx, instance_idx);
+    }
+
+    if (strcmp(version, "static") == 0)
+    {
+        sprintf(path, "xml/scenario%d_instance%d_S/result.rou.alt.xml", scenario_idx, instance_idx);
+        sprintf(path1, "xml/scenario%d_instance%d_S/trips.xml", scenario_idx, instance_idx);
+    }
 
     XMLDocument doc, doc1;
     doc.LoadFile(path);
@@ -344,7 +362,15 @@ void save_solution_xml(const CARPInd new_solution, const Task *inst_tasks)
         task->SetAttribute("demand", inst_tasks[j].demand);
     }
     char path[50];
-    sprintf(path, "xml/scenario%d_instance%d/new_solution.xml", scenario_idx, instance_idx);
+    if (strcmp(version, "dynamic") == 0)
+    {
+        sprintf(path, "xml/scenario%d_instance%d_D/new_solution.xml", scenario_idx, instance_idx);
+    }
+
+    if (strcmp(version, "static") == 0)
+    {
+        sprintf(path, "xml/scenario%d_instance%d_S/new_solution.xml", scenario_idx, instance_idx);
+    }
     doc.SaveFile(path);
 
 }

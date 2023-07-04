@@ -32,6 +32,8 @@ extern int run_num;
 extern int min_cost_r[NODE_NUM+1][NODE_NUM+1];
 extern int min_cost[MAX_NODE_TAG_LENGTH][MAX_NODE_TAG_LENGTH+1];
 
+extern char version[20];
+
 // record the new tasks
 extern int new_tasks_list[MAX_TASK_SEQ_LENGTH];
 
