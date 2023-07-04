@@ -4,7 +4,7 @@
 #include "globalvar.h"
 
 
-#define CMDFLAG 1
+#define CMDFLAG 0
 
 int capacity;
 int req_edge_num;
@@ -22,6 +22,7 @@ int new_tasks_list[MAX_TASK_SEQ_LENGTH];
 
 void init(Task *inst_tasks, CARPInd *old_solution);
 void save_solution_xml(const CARPInd new_solution, const Task *inst_tasks);
+void SimpleInsertion(const Task *inst_tasks, CARPInd old_solution, CARPInd *new_solution);
 
 // write a main function for hello world
 int main(int argc, char *argv[])
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
         instance_idx = inst_info.get<int>("instance");
     } else {
         scenario_idx = 1;
-        instance_idx = 3;
+        instance_idx = 1;
     }
     printf("load scenario and instance successfully. \n");
 
@@ -57,25 +58,154 @@ int main(int argc, char *argv[])
     CARPInd old_solution;
     init(inst_tasks, &old_solution);
 
-    CARPInd ps_solution, maens_solution;
+    CARPInd ps_solution, maens_solution, insert_solution;
     
     int ServeMark[2*req_edge_num + 1];
     memset(ServeMark, 1, sizeof(ServeMark));
     path_scanning(&ps_solution, inst_tasks, ServeMark);
 
-    // printf("ps_solution: %d\n", ps_solution.TotalCost);
+    printf("ps_solution: %d\n", ps_solution.TotalCost);
 
-    MAENS(inst_tasks, &maens_solution, ps_solution, 0); // 1 for dynamic, 0 for restart
-    save_solution_xml(maens_solution, inst_tasks); 
+    SimpleInsertion(inst_tasks, old_solution, &insert_solution);
+
+    printf("insert_solution: %d\n", insert_solution.TotalCost);
+
+    // MAENS(inst_tasks, &maens_solution, ps_solution, 0); // 1 for dynamic, 0 for restart
+    // save_solution_xml(maens_solution, inst_tasks); 
 
     return 0;
 
 }
 
 // this function is for new tasks without re-optimization
-void SimpleInsertion(const Task *inst_tasks, CARPInd *sol)
+// insert new tasks into the old solution greedy one by one
+void SimpleInsertion(const Task *inst_tasks, CARPInd old_solution, CARPInd *new_solution)
 {
+    int i,j,k;
 
+    // sort new tasks according to costs to depot: far to close
+    int cost[MAX_TASK_SEQ_LENGTH];
+    memset(cost, 0, sizeof(cost));
+    cost[0] = new_tasks_list[0];
+    int c1, c2;
+    for (i=1; i<=new_tasks_list[0]; i++)
+    {
+        c1 = min_cost[DEPOT][inst_tasks[new_tasks_list[i]].head_node];
+        c2 = min_cost[DEPOT][inst_tasks[new_tasks_list[i]].tail_node];
+        cost[i] = (int)((c1+c2)/2);
+    }
+    for (i=1; i<cost[0]; i++)
+    {
+        for(j=i+1; j<=cost[0];j++)
+        {
+            if (cost[i] < cost[j])
+            {
+                int tmp = cost[j];
+                cost[j] = cost[i];
+                cost[i] = tmp;
+
+                tmp = new_tasks_list[j];
+                new_tasks_list[j] = new_tasks_list[i];
+                new_tasks_list[i] = tmp;
+            }
+        }
+    }
+
+    lns_route curr_solution;
+    int Positions[101];
+    find_ele_positions(Positions, old_solution.Sequence, 0);
+    memset(curr_solution.loads, 0, sizeof(curr_solution.loads));
+    curr_solution.Route[0][0] = Positions[0] - 1;
+    curr_solution.loads[0] = Positions[0] - 1;
+    for (i = 1; i < Positions[0]; i++)
+    {
+        AssignSubArray(old_solution.Sequence, Positions[i], Positions[i+1], curr_solution.Route[i]); // Route[i]: 0 x x x x 0
+        curr_solution.loads[i] = 0;
+        for (j = Positions[i]+1; j < Positions[i+1]; j++)
+        {
+            curr_solution.loads[i] += inst_tasks[old_solution.Sequence[j]].demand;
+        }
+    }
+    curr_solution.total_cost = old_solution.TotalCost;
+    int total_num_route = curr_solution.Route[0][0];
+
+    for (i=1; i<=new_tasks_list[0]; i++)
+    {   
+        int new_task = new_tasks_list[i];
+        int new_task_demand = inst_tasks[new_task].demand;
+        int insert_cost, min_insert_cost=INF;
+        int min_insert_pos[2];
+        for (j=1; j<=total_num_route; j++)
+        {
+            if (curr_solution.loads[j] + new_task_demand > capacity) continue;
+
+            for (k=1; k<curr_solution.Route[j][0]; k++)
+            {
+                if (k==1 && inst_tasks[curr_solution.Route[j][k+1]].vt > 0) continue;
+
+                insert_cost = -1*min_cost[DEPOT][inst_tasks[curr_solution.Route[j][2]].head_node];
+                insert_cost += min_cost[DEPOT][inst_tasks[new_task].head_node];
+                insert_cost += min_cost[inst_tasks[new_task].tail_node][inst_tasks[curr_solution.Route[j][2]].head_node];
+
+                if (insert_cost < min_insert_cost)
+                {
+                    min_insert_cost = insert_cost;
+                    min_insert_pos[0] = j;
+                    min_insert_pos[1] = k;
+                }
+
+                insert_cost = -1*min_cost[DEPOT][inst_tasks[curr_solution.Route[j][2]].head_node];
+                insert_cost += min_cost[DEPOT][inst_tasks[new_task].tail_node];
+                insert_cost += min_cost[inst_tasks[new_task].head_node][inst_tasks[curr_solution.Route[j][2]].head_node];
+                if (insert_cost < min_insert_cost)
+                {
+                    min_insert_cost = insert_cost;
+                    min_insert_pos[0] = j;
+                    min_insert_pos[1] = -1*k;
+                }
+            }
+        }
+        if (min_insert_cost < INF)
+        {
+            if (min_insert_pos[1] < 0)
+            {
+                new_task = inst_tasks[new_task].inverse;
+                min_insert_pos[1] *= -1;
+            }
+            add_element(curr_solution.Route[min_insert_pos[0]], new_task, min_insert_pos[1]+1);
+            curr_solution.loads[min_insert_pos[0]] += new_task_demand;
+        } else{ // no feasible route avaliable
+            curr_solution.Route[0][0]++;
+            total_num_route ++;
+            curr_solution.Route[total_num_route][0] = 0;
+            curr_solution.Route[total_num_route][1] = new_task;
+            curr_solution.Route[total_num_route][2] = 0;
+            curr_solution.loads[0] ++;
+            curr_solution.loads[curr_solution.loads[0]] = new_task_demand;
+        }
+    }
+
+    // route -> sequence
+    new_solution->Sequence[0] = 1;
+    k = 0;
+    for (i = 1; i <= curr_solution.Route[0][0]; i++)
+    {
+        if (curr_solution.Route[i][0] > 2)
+        {
+            new_solution->Sequence[0] --;
+            JoinArray(new_solution->Sequence, curr_solution.Route[i]);
+            k ++;
+            new_solution->Loads[k] = curr_solution.loads[i];
+            if (curr_solution.loads[i] > capacity)
+            {
+                printf("the solution is not feasible. It must have bugs. \n");
+                exit(0);
+            }
+        }
+    }
+    new_solution->Loads[0] = k;
+    new_solution->TotalCost = get_task_seq_total_cost(new_solution->Sequence, inst_tasks);
+    new_solution->TotalVioLoad = 0;
 }
 
 

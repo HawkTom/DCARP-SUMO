@@ -51,7 +51,7 @@ class sumo_dcarp_init():
                 del route
                 route = routine() # generate a new empty route
                 continue
-            #TODO set the road has already been a task => DONE
+            #set the road has already been a task
             eid = edge_list[t]
             edge_property[eid]["Task"] = True
             tt = task(eid, d) # constrcut a task
@@ -109,7 +109,7 @@ class sumo_dcarp():
     
     @classmethod
     def reschedule(self, scenario, instance):
-        global disflags, fs, edge_list, edge_property, task_candidate_set
+        global disflags, fs, edge_list, edge_property, task_candidate_set, version
         # determine which tasks have been served first.
         served_tasks = {}
         for vid in disflags.flags.keys():
@@ -168,28 +168,10 @@ class sumo_dcarp():
             fs.veh_route[fs.routines[i].vid] = i
             
         fs.complete()
-        
-        # if has new tasks, assign to the new vehicle (path-scanning)
-        
-        # fs --> new solutions with virtual tasks
-        # if scenario in [1,2,7,9]:
-        #     new_tasks = sumo_dcarp_init.new_tasks_whole
-        # elif scenario in [3,6,8,12]:
-        #     new_tasks = sumo_dcarp_init.busy_area
-        # elif scenario in [4,5,10,11]:
-        #     new_tasks = sumo_dcarp_init.not_busy_area
-
-
-        # added_tasks = []
-        # if len(new_tasks) > 0 and instance > 3:
-        #     print("added tasks current time:", traci.simulation.getTime())
-        #     for i in range(4):
-        #         added_tasks.append(new_tasks.pop())
 
         added_tasks = []
         if ADD_TASK_FLAG and instance <= 5:
-            # TODO: according to road's properties to add tasks => DONE
-            # TODO: select tasks whose cost are greater than 1.
+            # according to road's properties to add tasks
             # 1. filter the edges which have not been tasks
             for edge_idx in task_candidate_set[:]:
                 edge_name = edge_list[edge_idx]
@@ -224,9 +206,13 @@ class sumo_dcarp():
                 edge_property[edge_list[new_task]]["Task"] = True
 
 
-
-        folder = "xml/scenario{0}_instance{1}".format(scenario, instance)
-        solution_path = folder + "/new_solution.xml"
+        if version == "dynamic":
+            folder = "xml/scenario{0}_instance{1}_D".format(scenario, instance)
+            solution_path = folder + "/new_solution.xml"
+        
+        if version == "static":
+            folder = "xml/scenario{0}_instance{1}_S".format(scenario, instance)
+            solution_path = folder + "/new_solution.xml"
         
 
         if os.path.isfile(solution_path):
@@ -281,7 +267,6 @@ class sumo_dcarp():
         tree=ET.ElementTree(root)
         tree.write(folder+"/weights.xml")
 
-
         tasks = [depot_out.edge, depot_in.edge]
         for r in fs.routines:
             for tsk in r.tasks_seqs[1:-1]:
@@ -317,8 +302,6 @@ class sumo_dcarp():
     def parse_tasks_seq(self, scenario, instance, added_tasks):
         global fs,net
         root = ET.Element('info', {'scenario': str(scenario), 'instance':str(instance)})
-        
-        
         depot_from_node = net.getEdge(depot_out.edge).getFromNode().getID()
         depot_to_node = net.getEdge(depot_out.edge).getToNode().getID()
         ET.SubElement(root,'depot', {'id':'0', 'edge': depot_out.edge, 'from_node': depot_from_node, 'from_index':str(node_dict[depot_from_node]), 'to_node':depot_to_node, 'to_index':str(node_dict[depot_to_node])}) # depot_out: 0
@@ -378,8 +361,6 @@ class sumo_dcarp():
         for route in root:
             new_route = routine()
 
-            # TODO: getchildren is not valid in the new version
-            # route_tasks = route.getchildren()
             route_tasks = list(route)
 
             vtsk = route_tasks.pop(0)
@@ -491,6 +472,17 @@ def set_task_dis_flag1():
         disflags.add_dis_flags(vid, distance_for_task)
 
 
+def hidden_served_task():
+    for vid in gc.vehicles:
+        try:
+            e = traci.vehicle.getRoadID(vid)
+            if e == '':
+                continue
+            if traci.gui.isSelected(e,  objType='edge'):
+                traci.gui.toggleSelection(e,  objType='edge')
+        except:
+            pass
+
 class TestListener(traci.StepListener):
 
     def __init__(self, scenario):
@@ -510,6 +502,7 @@ class DCARPListener(traci.StepListener):
         self.flag2 = False
         self.cost = [0]*5
         self.fo = open("output/cost_change"+str(scenario)+".txt", "w")
+        self.dynamic_time = open("xml/timepoint"+str(scenario)+".txt", "w")
         self.net_fig = None
         self.net_ax = None
         self.instance = 0
@@ -518,7 +511,7 @@ class DCARPListener(traci.StepListener):
     def step(self, t=0.0):
         self.count += 1
         remove_return_vehicle()
-        self.hidden_served_task()
+        hidden_served_task()
         # accumulate cost used
 
         if self.instance >= 10:
@@ -560,13 +553,14 @@ class DCARPListener(traci.StepListener):
             print(self.cost)         
             if self.cost[0]!=0 and self.cost[-1] > self.cost[0] * 1.05 and self.flag2:
 
-            
                 cost = self.cost[-1]
                 t_now = traci.simulation.getTime()
                 self.fo.write("{0},{1}\n".format(t_now, cost))
 
                 self.instance += 1
                 print("scenario: ", self.scenario, "instance: ", self.instance, "current time:", t_now)
+                #save the time for rescheduling for CARP without dynamic optimization
+                self.dynamic_time.write("t{0},{1}\n".format(self.instance, t_now))
                 sumo_dcarp.reschedule(self.scenario, self.instance)
 
                 # for vid in gc.vehicles:
@@ -612,13 +606,6 @@ class DCARPListener(traci.StepListener):
         route_edges_nv1 = traci.vehicle.getRoute('nv1')
         for e in route_edges_nv1:
             traci.gui.toggleSelection(e,  objType='edge')
-    def hidden_served_task(self):
-        for vid in gc.vehicles:
-            e = traci.vehicle.getRoadID(vid)
-            if e == '':
-                continue
-            if traci.gui.isSelected(e,  objType='edge'):
-                traci.gui.toggleSelection(e,  objType='edge')
 
 
 class SCARPListener(traci.StepListener):
@@ -626,217 +613,28 @@ class SCARPListener(traci.StepListener):
     def __init__(self, scn_idx) -> None:
         self.count = 0
         self.scenario = scn_idx
-        self.curr_veh = 0
-        self.curr_veh_load = 1000
-        self.curr_veh_dis = []
-        self.tasks_seqs = []
-        # self.added_tasks_time_points = [34034.0, 34320.0, 34352.0, 34381.0]
-        # self.added_tasks_time_points = [50000.0]
-        # self.added_tasks_time_points = [33601.0, 34349.0, 34562.0, 34680.0, 34839.0]
-        # self.added_tasks_time_points = [34321.0, 34350.0, 34470.0, 34500.0, 34530.0]
-        # self.added_tasks_time_points = [50000.0]
-        # self.added_tasks_time_points = [34413.0, 35311.0, 35340.0, 35379.0, 35400.0]
-        # self.added_tasks_time_points = [44343.0, 44401.0, 44654.0, 45031.0, 45756.0]
-        # self.added_tasks_time_points = [44737.0, 44882.0, 44913.0, 45150.0, 45189.0]
-        # self.added_tasks_time_points = [44833.0, 44854.0, 44889.0, 44913.0, 45810.0]
-        # self.added_tasks_time_points = [45150.0]
-        # self.added_tasks_time_points = [50000.0]
-        self.added_tasks_time_points = [45002.0,45480.0,45510.0,45540.0,45570.0]
+        self.instance = 0
+        self.load_added_tasks_time(scn_idx=scn_idx)
+        
+    def load_added_tasks_time(self, scn_idx):
+        with open("xml/timepoint"+str(1)+".txt", 'r') as f:
+            self.added_tasks_time_points = [int(t.strip().split(',')[1]) for t in f.readlines()]
         
 
-
     def step(self, t=0): # added tasks one by one
-        global edge_list
         self.count += 1
-        self.hidden_served_task()
+        hidden_served_task()
         # print(self.count)
         if self.count <= 200:
             return True
-        vid = "new" + str(self.curr_veh)
-        if self.curr_veh > 0 and (vid in gc.vehicles):
-            if traci.vehicle.getDistance(vid) < 0:
-                return True
-            edge_id = traci.vehicle.getRoadID(vid)
-            if edge_id[0] == ":":
-                return True
         
-        self.count = 0
-        if self.scenario in [1,2,7,9]:
-            new_tasks = sumo_dcarp_init.new_tasks_whole
-        elif self.scenario in [3,6,8,12]:
-            new_tasks = sumo_dcarp_init.busy_area
-        elif self.scenario in [4,5,10,11]:
-            new_tasks = sumo_dcarp_init.not_busy_area
-        
-        if len(new_tasks) > 0:
-            added_task = new_tasks.pop()
-        else:
-            return True
-
-        tsk_id = edge_list[added_task]
-        from_node = net.getEdge(tsk_id).getFromNode().getID()
-        to_node = net.getEdge(tsk_id).getToNode().getID()
-        tsk_demand = int(net.getEdge(tsk_id).getLength() / 10)
-        traci.gui.toggleSelection(tsk_id,  objType='edge')
-        
-        if ((vid not in gc.vehicles) or (self.curr_veh_load + tsk_demand > gc.capacity)):
-            self.curr_veh += 1
-            task_seqs = [depot_out.edge, tsk_id, depot_in.edge]
-
-            self.tasks_seqs = [tsk_id]
-
-            route_edges_seqs = ()
-            for i in range(len(task_seqs)-1):
-                start = task_seqs[i]
-                end = task_seqs[i+1]
-                rr = traci.simulation.findRoute(start, end, routingMode=1)
-                route_edges_seqs += rr.edges[:-1]
-                
-            route_edges_seqs += (depot_in.edge, )
-            route_num = self.curr_veh
-            route_id = str(time.time()+route_num).replace('.', '')
-            vechile_id = "new" + str(route_num)
-            traci.route.add(route_id, route_edges_seqs)
-            traci.vehicle.add(vechile_id, route_id, typeID="carp", depart=traci.simulation.getTime()+1) 
-            traci.vehicle.setColor(vechile_id, (255,0,0))
-            traci.vehicle.setParameter(vechile_id, "has.rerouting.device", "true")
-            traci.vehicle.setParameter(vechile_id, "device.rerouting.period", 100000.0)
-            traci.gui.toggleSelection(vechile_id)
-            self.curr_veh_load = tsk_demand
-            gc.vehicles.append(vechile_id)
-
-            dis1 = traci.vehicle.getDrivingDistance(vechile_id, tsk_id, 0)
-            dis0 = traci.vehicle.getDrivingDistance(vechile_id, depot_in.edge, 1)
-            self.curr_veh_dis = [dis0-dis1]
-        else:
-            self.curr_veh_load += tsk_demand
-            self.tasks_seqs.append(tsk_id)
-            vid = "new" + str(self.curr_veh)
-
-            
-            dis = traci.vehicle.getDrivingDistance(vid, depot_in.edge, 1)
-            for j in range(len(self.curr_veh_dis)):
-                if dis >= self.curr_veh_dis[j]:
-                    break
-            remain_tasks = self.tasks_seqs[j:]
-
-            edge_id = traci.vehicle.getRoadID(vid)
-            stop_edge = net.getEdge(edge_id).getID()
-
-            task_seqs = [stop_edge] + remain_tasks + [depot_in.edge]
-
-            route_edges_seqs = ()
-            for i in range(len(task_seqs)-1):
-                start = task_seqs[i]
-                end = task_seqs[i+1]
-                rr = traci.simulation.findRoute(start, end, routingMode=1)
-                route_edges_seqs += rr.edges[:-1]
-
-            route_edges_seqs += (depot_in.edge, )
-            traci.vehicle.setRoute(vid, route_edges_seqs)
-            
-            self.curr_veh_dis = []
-            for tsk in self.tasks_seqs:
-                dis1 = traci.vehicle.getDrivingDistance(vid, tsk, 0)
-                dis0 = traci.vehicle.getDrivingDistance(vid, depot_in.edge, 1)
-                self.curr_veh_dis.append(dis0-dis1)
+        # added tasks and insert tasks
+        t_now = traci.simulation.getTime()
+        if (t_now in self.added_tasks_time_points):
+            self.instance += 1
+            sumo_dcarp.reschedule(self.scenario, self.instance)
 
         return True
-    
-    def step(self, t=0): # added tasks batch by batch, using path-scanning
-        global edge_list
-        # self.count += 1
-        self.hidden_served_task()
-        # print(self.count)
-        if len(self.added_tasks_time_points) == 0:
-            return True
-
-        curr_time = traci.simulation.getTime()
-        if curr_time != self.added_tasks_time_points[0]:
-            return True
-        self.added_tasks_time_points.pop(0)
-
-        # if self.count <= 500:
-        #     return True
-        
-        # self.count = 0
-
-        if self.scenario in [1,2,7,9]:
-            new_tasks = sumo_dcarp_init.new_tasks_whole
-        elif self.scenario in [3,6,8,12]:
-            new_tasks = sumo_dcarp_init.busy_area
-        elif self.scenario in [4,5,10,11]:
-            new_tasks = sumo_dcarp_init.not_busy_area
-        
-        added_tasks = []
-        added_tasks_demand = []
-        if len(new_tasks) > 0:
-            print("added tasks current time:", traci.simulation.getTime())
-            for _ in range(4):
-                tsk_id = edge_list[new_tasks.pop()]
-                added_tasks.append(tsk_id)
-                added_tasks_demand.append(int(net.getEdge(tsk_id).getLength() / 10))
-                traci.gui.toggleSelection(tsk_id,  objType='edge')
-        else:
-            return True
-
-        self.tasks_seqs = [depot_out.edge]
-        # path-scanning
-        load = 0
-        while len(added_tasks) > 0:
-            ratios = []
-            for jj in range(len(added_tasks)):
-                if (load+added_tasks_demand[jj] > gc.capacity):
-                    continue
-                rr = traci.simulation.findRoute(self.tasks_seqs[-1], added_tasks[jj])
-                dis = rr.cost
-                ratio = dis/(gc.capacity-load-added_tasks_demand[jj])
-                ratios.append(ratio)
-            if len(ratios) == 0:
-                load = 0
-                self.tasks_seqs += [depot_in.edge, depot_out.edge]
-            else:
-                maxr = max(ratios)
-                select = ratios.index(maxr)
-                self.tasks_seqs.append(added_tasks.pop(select))
-                load += added_tasks_demand.pop(select)
-        self.tasks_seqs.append(depot_in.edge)
-
-        self.curr_veh += 1
-        route_edges_seqs = ()
-        for i in range(len(self.tasks_seqs)-1):
-            start = self.tasks_seqs[i]
-            end = self.tasks_seqs[i+1]
-            rr = traci.simulation.findRoute(start, end, routingMode=1)
-            route_edges_seqs += rr.edges[:-1]
-
-        route_edges_seqs += (depot_in.edge, )
-        route_num = self.curr_veh
-        route_id = str(time.time()+route_num).replace('.', '')
-        vechile_id = "new" + str(route_num)
-        traci.route.add(route_id, route_edges_seqs)
-        traci.vehicle.add(vechile_id, route_id, typeID="carp", depart=traci.simulation.getTime()+1) 
-        traci.vehicle.setColor(vechile_id, (255,0,0))
-        traci.vehicle.setParameter(vechile_id, "has.rerouting.device", "true")
-        traci.vehicle.setParameter(vechile_id, "device.rerouting.period", 100000.0)
-        traci.gui.toggleSelection(vechile_id)
-        gc.vehicles.append(vechile_id)
-        
-        return True
-
-        # from_node = net.getEdge(tsk_id).getFromNode().getID()
-        # to_node = net.getEdge(tsk_id).getToNode().getID()
-
-    def hidden_served_task(self):
-        for vid in gc.vehicles:
-            try:
-                e = traci.vehicle.getRoadID(vid)
-                if e == '':
-                    continue
-                if traci.gui.isSelected(e,  objType='edge'):
-                    traci.gui.toggleSelection(e,  objType='edge')
-            except:
-                pass
 
 
 
@@ -858,7 +656,7 @@ node_list = map_data[1] # node_list[node_idx]=node_name
 edge_dict = map_data[2] # edge_dict[edge_name]=edge_idx
 edge_list = map_data[3] # edge_list[edge_idx]=edge_name
 
-# TODO: give each road two properties: 1). belong to busy area or not, 2) if it has already been a task => DONE
+#give each road two properties: 1). belong to busy area or not, 2) if it has already been a task
 with open('traffic/edges_area_info.pickle', 'rb') as f:
     edges_area = pickle.load(f) # edges_area[edge_name]= "busy" or "uncrowded"
 
@@ -966,3 +764,4 @@ while len(gc.vehicles) > 0:
 traci.close()
 if version == "dynamic":
     listener.fo.close()
+    listener.dynamic_time.close()
