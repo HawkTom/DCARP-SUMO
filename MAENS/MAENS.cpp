@@ -208,7 +208,14 @@ void MAENS_main_loop(int popsize, CARPInd *best_fsb_solution, CARPInd *pop, cons
 
             // randomly select two parents
             int par_id1, par_id2;
-            rand_selection(&par_id1, &par_id2, popsize);
+            if (popsize > 1)
+            {
+                rand_selection(&par_id1, &par_id2, popsize);
+            } else {
+                par_id1 = 0;
+                par_id2 = 0;
+            }
+            
             parent1 = pop[par_id1];
             // parent1 = InitSolution;
             parent2 = pop[par_id2];

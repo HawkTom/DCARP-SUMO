@@ -237,9 +237,7 @@ class sumo_dcarp():
                 remain_tasks_num = sumo_dcarp.parse_tasks_seq(folder, scenario, instance, added_tasks)
 
             if remain_tasks_num > 3:
-                # call C program (local search)
-                # print("Stop here.")
-                # exit(0)
+                # call C program
                 subprocess.call([r'./dcarp-sumo.exe', '-s', str(scenario), '-i', str(instance), '-v', version])
 
                 # load new solution and assign to the vehicle
@@ -743,15 +741,16 @@ for edge_name in edge_dict:
 #     raise ValueError("please input scenario index")
 # scenario = int(sys.argv[1])
 
-version = "static"
-# try:
-#     version = sys.argv[1]
-#     print("version:", version)
-# except:
-#     raise Exception('Lack of the version of scheduling: dynamic or static?')
+# version = "static"
+# scenario = 1
+try:
+    version = sys.argv[1]
+    scenario = int(sys.argv[2])
+    print("version:", version)
+except:
+    raise ValueError('Lack of the version of scheduling: dynamic or static?')
 
 
-scenario = 1
 scenario_file = "dcarp/scenario{0}.xml".format(scenario)
 tree = ET.ElementTree(file=scenario_file)
 info = tree.getroot()
@@ -786,34 +785,21 @@ net = sumolib.net.readNet("scenario/DCC.net.xml")
 depot_coord = net.getEdge(depot_out.edge).getFromNode().getCoord()
 traci.start(["sumo-gui", "-c", "scenario/DCC_simulation.sumo.cfg", "--begin", begin_time, "--end", end_time, "--step-length", step_length, "--start", "true"]) #, "--start", "true"
 traci.poi.add('depot', depot_coord[0], depot_coord[1], (1,0,0,0))
-# gc.set_sim(traci.simulation)
 
-
-
-# for eid in edge_dict:
-#     rr = traci.simulation.findRoute(depot_out.edge, eid)
-#     rr1 = traci.simulation.findRoute(eid, depot_out.edge)
-#     if (len(rr.edges) == 0) or (len(rr1.edges) == 0):
-#         print(eid)
-
-# exit(-1)
 
 # obtain the initial solution and assign vehicles with correspongding scheduling path to the simulation
 fs, disflags = sumo_dcarp_init.init(scenario_file)
 
 
 # the above is the initial process
-# version = "dynamic"
 if version == "dynamic":
     listener = DCARPListener(scenario) # scenario index
 
 if version == "static":
     listener = SCARPListener(scenario)
-# version = "static"
-# listener = SCARPListener(scenario)
 
-# version = "test"
-# listener = TestListener(scenario)
+if version == "test":
+    listener = TestListener(scenario)
 
 traci.addStepListener(listener)
 
@@ -822,13 +808,17 @@ while len(gc.vehicles) > 0:
     remove_return_vehicle()
     traci.simulationStep()
 
-# if version == "static":
-#     with open("output/simulationStepStatic.txt", "a") as f:
-#         s = "scenario{0} ".format(scenario)
-#         s += time.strftime(r"%Y-%m-%d:%H:%M:%S", time.localtime()) 
-#         s +=  ": " + str(begin_time) + " to " + str(traci.simulation.getTime())
-#         s += "\n"
-#         f.write(s)
+
+with open("output/simulationStepStatic.txt", "a") as f:
+    if version == "static":
+        s = "scenario{0} S ".format(scenario)
+    if version == "dynamic":
+        s = "scenario{0} D ".format(scenario)
+
+    s += time.strftime(r"%Y-%m-%d:%H:%M:%S", time.localtime()) 
+    s +=  ": " + str(begin_time) + " to " + str(traci.simulation.getTime())
+    s += "\n"
+    f.write(s)
     
 traci.close()
 if version == "dynamic":

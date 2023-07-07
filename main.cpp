@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
         strcpy(version, inst_info.get<std::string>("version").c_str());
     } else {
         scenario_idx = 1;
-        instance_idx = 1;
-        strcpy(version, "dynamic");
+        instance_idx = 5;
+        strcpy(version, "static");
     }
     printf("load scenario, instance, optimization version successfully. \n");
 
@@ -187,9 +187,10 @@ void SimpleInsertion(const Task *inst_tasks, CARPInd old_solution, CARPInd *new_
         } else{ // no feasible route avaliable
             curr_solution.Route[0][0]++;
             total_num_route ++;
-            curr_solution.Route[total_num_route][0] = 0;
-            curr_solution.Route[total_num_route][1] = new_task;
-            curr_solution.Route[total_num_route][2] = 0;
+            curr_solution.Route[total_num_route][0] = 3;
+            curr_solution.Route[total_num_route][1] = 0;
+            curr_solution.Route[total_num_route][2] = new_task;
+            curr_solution.Route[total_num_route][3] = 0;
             curr_solution.loads[0] ++;
             curr_solution.loads[curr_solution.loads[0]] = new_task_demand;
         }
