@@ -1,12 +1,12 @@
 import subprocess, sys
+import xml.etree.ElementTree as ET
 
 
-
-try:
-    version = sys.argv[1]
-    print("version:", version)
-except:
-    raise Exception('Lack of the version of scheduling: dynamic or static?')
+# try:
+#     version = sys.argv[1]
+#     print("version:", version)
+# except:
+#     raise Exception('Lack of the version of scheduling: dynamic or static?')
 
 # subprocess.call([r'./dcarp-sumo.exe', '-s', str(1), '-i', str(1)])
 # task_tabu_list = []
@@ -40,3 +40,20 @@ except:
 #         print(eid)
 
 # exit(-1)
+
+for scenario in range(1, 13):
+    scenario_file = "dcarp/scenario{0}.xml".format(scenario)
+    tree = ET.ElementTree(file=scenario_file)
+    info = tree.getroot()
+
+
+    description = info.attrib["description"]
+
+    TASK_DISTRIBUTION = 1 # 1: whole; 2: only busy area; 3: only not busy area
+    if "whole" in description:
+        TASK_DISTRIBUTION = 1 # 1: whole; 2: only busy area; 3: only not busy area
+    if "busy" in description:
+        TASK_DISTRIBUTION = 2
+    if "uncrowded" in description:
+        TASK_DISTRIBUTION = 3
+    print(description, TASK_DISTRIBUTION)

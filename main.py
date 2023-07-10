@@ -10,7 +10,6 @@ import numpy as np
 from utils.plot_net_selection import plot_route
 
 ADD_TASK_FLAG = True
-TASK_DISTRIBUTION = 1 # 1: whole; 2: only busy area; 3: only not busy area
 
 class sumo_dcarp_init():
 
@@ -170,6 +169,7 @@ class sumo_dcarp():
         fs.complete()
 
         if ADD_TASK_FLAG and instance <= 5 and version == "dynamic":
+            np.random.seed(int(time.time()))
             added_tasks = []
             # according to road's properties to add tasks
             # 1. filter the edges which have not been tasks
@@ -628,7 +628,7 @@ class SCARPListener(traci.StepListener):
         
         
     def load_added_tasks_time(self, scn_idx):
-        with open("xml/timepoint"+str(1)+".txt", 'r') as f:
+        with open("xml/timepoint"+str(scn_idx)+".txt", 'r') as f:
             # self.added_tasks_time_points = [float(t.strip().split(',')[1]) for t in f.readlines()]
             ll = f.readlines()
             for t in ll:
@@ -702,6 +702,21 @@ def route_visualization(route_edges, fig=None, ax=None):
     return n_fig, n_ax
 
 
+
+# if (len(sys.argv) == 1):
+#     raise ValueError("please input scenario index")
+# scenario = int(sys.argv[1])
+
+# version = "static"
+# scenario = 1
+try:
+    version = sys.argv[1]
+    scenario = int(sys.argv[2])
+    print("version:", version)
+except:
+    raise ValueError('Lack of the version of scheduling: dynamic or static?')
+
+
 # main program
 with open('traffic/dublin.pickle', 'rb') as f:
     map_data = pickle.load(f)
@@ -718,6 +733,22 @@ with open('traffic/edges_area_info.pickle', 'rb') as f:
 with open('task_tabu_list.txt', 'r') as f:
     task_tabu_list = f.read().splitlines()
 
+
+scenario_file = "dcarp/scenario{0}.xml".format(scenario)
+tree = ET.ElementTree(file=scenario_file)
+info = tree.getroot()
+
+
+description = info.attrib["description"]
+
+TASK_DISTRIBUTION = 1 # 1: whole; 2: only busy area; 3: only not busy area
+if "whole" in description:
+    TASK_DISTRIBUTION = 1 # 1: whole; 2: only busy area; 3: only not busy area
+if "busy" in description:
+    TASK_DISTRIBUTION = 2
+if "uncrowded" in description:
+    TASK_DISTRIBUTION = 3
+
 edge_property = {}
 task_candidate_set = []
 for edge_name in edge_dict:
@@ -733,27 +764,6 @@ for edge_name in edge_dict:
         task_candidate_set.append(edge_dict[edge_name])
     elif (TASK_DISTRIBUTION == 3 and edges_area[edge_name] == "uncrowded"): # only not busy area
         task_candidate_set.append(edge_dict[edge_name])
-
-
-
-
-# if (len(sys.argv) == 1):
-#     raise ValueError("please input scenario index")
-# scenario = int(sys.argv[1])
-
-# version = "static"
-# scenario = 1
-try:
-    version = sys.argv[1]
-    scenario = int(sys.argv[2])
-    print("version:", version)
-except:
-    raise ValueError('Lack of the version of scheduling: dynamic or static?')
-
-
-scenario_file = "dcarp/scenario{0}.xml".format(scenario)
-tree = ET.ElementTree(file=scenario_file)
-info = tree.getroot()
 
 # set the time setting of the simulation: begin, end, step
 time_setting = info.find("time")
@@ -819,6 +829,7 @@ with open("output/simulationStepStatic.txt", "a") as f:
     s +=  ": " + str(begin_time) + " to " + str(traci.simulation.getTime())
     s += "\n"
     f.write(s)
+    print(s)
     
 traci.close()
 if version == "dynamic":

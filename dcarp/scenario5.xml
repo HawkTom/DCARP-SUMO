@@ -1,4 +1,4 @@
-<info description="6: depot in not center area, tasks distribute in busy area">
+<info description="depot in not center area, tasks distribute in busy area">
     <time begin="32400" end="86400" step="1"/>
     <depot id="outgoing" edge="-23347664#1" from_node="3452918857" from_index="1030" to_node="252816911" to_index="1031"/>
     <depot id="incoming" edge="23347664#0" from_node="252816911" from_index="1031" to_node="3452918857" to_index="1030"/>
