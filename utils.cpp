@@ -221,6 +221,8 @@ void init(Task *inst_tasks, CARPInd *solution)
         inst_tasks[i].serv_cost = 0;
         inst_tasks[i+req_edge_num].head_node = inst_tasks[i].head_node;
         inst_tasks[i+req_edge_num].tail_node = inst_tasks[i].tail_node;
+        inst_tasks[i+req_edge_num].head_node_r = inst_tasks[i].head_node_r;
+        inst_tasks[i+req_edge_num].tail_node_r = inst_tasks[i].tail_node_r;
         inst_tasks[i+req_edge_num].demand = inst_tasks[i].demand;
         inst_tasks[i+req_edge_num].vt = inst_tasks[i].vt;
         inst_tasks[i+req_edge_num].IDindex = inst_tasks[i].IDindex;

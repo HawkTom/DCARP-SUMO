@@ -83,14 +83,20 @@ int MAENS(const Task *inst_tasks, CARPInd *MAENSolution, CARPInd InitSolution, c
 
     MAENS_main_loop(popsize, &best_fsb_solution, pop, inst_tasks, dynamic_type);
 
-    if (false)
+    if (DYNMAIC)
     {
         // population has been ranked by stochastic ranking
         experience process;
         int save_sol_num;
+        
+        save_sol_num = process.save_best_so_far(best_fsb_solution);
         for (i=0; i<MAX_TOTALSIZE; i++)
         {
             if(pop[i].Sequence[0] == 0)
+            {
+                continue;
+            }
+            if (pop[i].TotalCost == best_fsb_solution.TotalCost) 
             {
                 continue;
             }
@@ -116,14 +122,6 @@ int MAENS(const Task *inst_tasks, CARPInd *MAENSolution, CARPInd InitSolution, c
     printf("type: %d.. Best Solution's Cost: %d\n", dynamic_type, MAENSolution->TotalCost);
 
     return algorithm_best;
-
-//     printf(" MAENSSOL : ");
-//     for (i=0; i<=best_fsb_solution.Sequence[0]; i++)
-//     {
-//         printf("%d ", best_fsb_solution.Sequence[i]);
-//     }
-//     printf("\n");
-//     printf(" MAENSBEST : %d\n", best_fsb_solution.TotalCost);
 }
 
 int generate_rand_solution(int tmp_popsize, CARPInd *init_indi, CARPInd *pop, const Task *inst_tasks)

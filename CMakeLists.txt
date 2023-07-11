@@ -18,7 +18,7 @@ set(LIBS libs/tinyxml2.cpp)
 
 set(SRC_LIST src/heuristic.cpp src/arrayoperations.cpp src/SBBA.cpp src/fileio.cpp)
 
-add_executable(dcarp-sumo main.cpp utils.cpp ${LIBS} ${SRC_LIST} ${SRC_LIST4})#${SRC_LIST1} ${SRC_LIST1} ${SRC_LIST2} ${SRC_LIST3} )
+add_executable(dcarp-sumo-compare main.cpp utils.cpp static_solver.cpp ${LIBS} ${SRC_LIST} ${SRC_LIST4})#${SRC_LIST1} ${SRC_LIST1} ${SRC_LIST2} ${SRC_LIST3} )
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

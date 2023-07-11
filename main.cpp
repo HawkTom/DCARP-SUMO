@@ -4,7 +4,7 @@
 #include "globalvar.h"
 
 
-#define CMDFLAG 1
+#define CMDFLAG 0
 
 int capacity;
 int req_edge_num;
@@ -52,9 +52,9 @@ int main(int argc, char *argv[])
         instance_idx = inst_info.get<int>("instance");
         strcpy(version, inst_info.get<std::string>("version").c_str());
     } else {
-        scenario_idx = 1;
-        instance_idx = 5;
-        strcpy(version, "static");
+        scenario_idx = 4;
+        instance_idx = 1;
+        strcpy(version, "dynamic");
     }
     printf("load scenario, instance, optimization version successfully. \n");
 
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
     if (strcmp(version, "dynamic") == 0)
     {
         MAENS(inst_tasks, &new_solution, ps_solution, 0); // 1 for dynamic, 0 for restart
-    } 
+    }
 
     printf("new_solution: %d\n", new_solution.TotalCost);
     save_solution_xml(new_solution, inst_tasks);

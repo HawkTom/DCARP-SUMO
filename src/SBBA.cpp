@@ -78,7 +78,7 @@ void experience::save_solutions(const Task *inst_tasks)
 {
     char path[100];
     memset(path, 0, sizeof(path));
-    sprintf(path, "degl/s%d-sols%d.txt", scenario_idx, instance_idx);
+    sprintf(path, "data/s%d-sols%d.txt", scenario_idx, instance_idx);
     FILE *fp;
     fp = fopen(path, "w");
     int data_num;
@@ -102,8 +102,8 @@ void experience::save_solutions(const Task *inst_tasks)
             {
                 fprintf(fp, "0,");
             } else {
-                head = inst_tasks[this->best_so_far[i][j]].head_node;
-                tail = inst_tasks[this->best_so_far[i][j]].tail_node;
+                head = inst_tasks[this->best_so_far[i][j]].head_node_r;
+                tail = inst_tasks[this->best_so_far[i][j]].tail_node_r;
                 fprintf(fp, "%d,%d,", head, tail);
             }
         }
@@ -128,12 +128,12 @@ repair_old_solutions::repair_old_solutions(const Task *inst_tasks, CARPInd old_s
     char path[100];
     memset(path, 0, sizeof(path));
     if (instance_idx == 1){
-        sprintf(path, "degl/s%d-sols%d.txt", scenario_idx, instance_idx-1);
+        sprintf(path, "data/s%d-sols%d.txt", scenario_idx, instance_idx-1);
     } else {
-        sprintf(path, "degl/s%d-sols%d.txt", scenario_idx, instance_idx-1);
+        sprintf(path, "data/s%d-sols%d.txt", scenario_idx, instance_idx-1);
     }
-//    sprintf(path, "degl/%s/s%d-sols%d.txt", map, scn_num, dym_t-1);
-//    sprintf(path, "degl/%s/sols%d.txt", map, dym_t-1);
+//    sprintf(path, "data/%s/s%d-sols%d.txt", map, scn_num, dym_t-1);
+//    sprintf(path, "data/%s/sols%d.txt", map, dym_t-1);
     FILE *fp;
     fp = fopen(path, "r");
 
@@ -957,12 +957,12 @@ insert_new_tasks::insert_new_tasks(const Task *inst_tasks) {
     char path[100];
     memset(path, 0, sizeof(path));
     if (instance_idx == 1){
-        sprintf(path, "degl/s%d-sols%d.txt", scenario_idx, instance_idx-1);
+        sprintf(path, "data/s%d-sols%d.txt", scenario_idx, instance_idx-1);
     } else {
-        sprintf(path, "degl/s%d-sols%d.txt", scenario_idx, instance_idx-1);
+        sprintf(path, "data/s%d-sols%d.txt", scenario_idx, instance_idx-1);
     }
 
-//    sprintf(path, "degl/%s/sols%d.txt", map, dym_t-1);
+//    sprintf(path, "data/%s/sols%d.txt", map, dym_t-1);
     FILE *fp;
     fp = fopen(path, "r");
 
@@ -1032,7 +1032,6 @@ insert_new_tasks::insert_new_tasks(const Task *inst_tasks) {
 //        this->insertion(&tmp_sol, inst_tasks);
 //        this->repair_capacity_constrain(&tmp_sol, inst_tasks);
         this->feasible_insert(&tmp_sol, inst_tasks);
-        // printf("ropt cost: %d\n", tmp_sol.TotalCost);
         copy_individual(&this->rsols[i], &tmp_sol);
     }
     fclose(fp);
