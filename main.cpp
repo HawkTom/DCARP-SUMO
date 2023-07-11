@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
         strcpy(version, inst_info.get<std::string>("version").c_str());
     } else {
         scenario_idx = 4;
-        instance_idx = 1;
+        instance_idx = 2;
         strcpy(version, "dynamic");
     }
     printf("load scenario, instance, optimization version successfully. \n");
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 
     if (strcmp(version, "dynamic") == 0)
     {
-        MAENS(inst_tasks, &new_solution, ps_solution, 0); // 1 for dynamic, 0 for restart
+        MAENS(inst_tasks, &new_solution, old_solution, 0); // 1 for dynamic, 0 for restart
     }
 
     printf("new_solution: %d\n", new_solution.TotalCost);

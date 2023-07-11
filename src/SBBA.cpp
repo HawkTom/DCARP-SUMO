@@ -872,10 +872,24 @@ int old_solution_block(int *sol_seq, const Task *inst_tasks, int type, building_
 
     // add each virtual task as an independent task
     int vt_num = 0;
-    for (i=inst_tasks[1].inverse-1; ; i--)
+    // for (i=inst_tasks[1].inverse-1; ; i--)
+    // {
+    //     if (inst_tasks[i].vt == 0)
+    //         break;
+    //     vt_num++;
+    //     seg_num++;
+    //     seg[seg_num].seqs[0] = 1;
+    //     seg[seg_num].seqs[1] = i;
+    //     seg[seg_num].head = DEPOT;
+    //     seg[seg_num].tail = inst_tasks[i].tail_node;
+    //     seg[seg_num].loads = inst_tasks[i].demand;
+    //     seg[seg_num].serv_costs = inst_tasks[i].serv_cost;
+    //     seg[seg_num].dep_dist = min_cost[seg[seg_num].tail][DEPOT];;
+    //     seg[seg_num].yield = 1.0*seg[seg_num].loads / inst_tasks[i].serv_cost;
+    // }
+    for (i=1; i<inst_tasks[1].inverse; i++)
     {
-        if (inst_tasks[i].vt == 0)
-            break;
+        if (inst_tasks[i].vt == 0) continue;
         vt_num++;
         seg_num++;
         seg[seg_num].seqs[0] = 1;

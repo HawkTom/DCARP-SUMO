@@ -194,6 +194,7 @@ void get_task_seq_loads(int *loads, const int *task_seq, const Task *inst_tasks)
             curr_load = 0;
             continue;
         }
+        if (task_seq[i] < 0) continue;
         curr_load += inst_tasks[task_seq[i]].demand;
     }
 }

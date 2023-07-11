@@ -1,5 +1,6 @@
 
 #include "globalvar.h"
+#include "src/src.h"
 #include "libs/tinyxml2.h"
 #include <math.h>
 using namespace tinyxml2;
@@ -253,7 +254,10 @@ void init(Task *inst_tasks, CARPInd *solution)
         inst_tasks[i+req_edge_num].dead_cost = inst_tasks[i].dead_cost;
     }
 
-
+    if (new_tasks_list[0] == 0)
+    {
+        solution->TotalCost = get_task_seq_total_cost(solution->Sequence, inst_tasks);
+    }
     int a=1;
     int b=1;
 }

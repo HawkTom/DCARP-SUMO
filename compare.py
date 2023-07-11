@@ -550,6 +550,8 @@ class DCARPListener(traci.StepListener):
             print("init: scenario: ", self.scenario, "instance: ", self.instance, "current time:", t_now)
             sumo_dcarp.reschedule(self.scenario, self.instance, info_path=self.dynamic_time)
             self.init_flag = False
+            self.flag1 = True
+            self.flag2 = False
             return True
             
         

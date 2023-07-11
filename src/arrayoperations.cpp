@@ -223,7 +223,7 @@ int FindTask(int a, int b, const Task *inst_tasks, int NO_Task)
 
     for (i = 1; i <= NO_Task; i++)
     {
-        if (inst_tasks[i].head_node == a && inst_tasks[i].tail_node == b)
+        if (inst_tasks[i].head_node_r == a && inst_tasks[i].tail_node_r == b)
             return i;
     }
 
@@ -357,4 +357,6 @@ void copy_individual(CARPInd *dest, CARPInd *src)
     memcpy(dest->Sequence, src->Sequence, sizeof(src->Sequence));
     memcpy(dest->Loads, src->Loads, sizeof(src->Loads));
     dest->TotalCost = src->TotalCost;
+    dest->TotalVioLoad = src->TotalVioLoad;
+    dest->Fitness = src->Fitness;
 }

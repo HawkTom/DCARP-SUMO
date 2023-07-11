@@ -28,8 +28,8 @@ int MAENS(const Task *inst_tasks, CARPInd *MAENSolution, CARPInd InitSolution, c
     if (dynamic_type==DYNMAIC) {
 
         // use inherited solutions
-//        repair_old_solutions exp(inst_tasks, InitSolution);
-        insert_new_tasks exp(inst_tasks);
+       repair_old_solutions exp(inst_tasks, InitSolution);
+        // insert_new_tasks exp(inst_tasks);
 
         tmp_popsize = 0;
         int old_sol_idx = 0;
