@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 
     if (strcmp(version, "dynamic") == 0)
     {
-        MAENS(inst_tasks, &new_solution, old_solution, 0); // 1 for dynamic, 0 for restart
+        MAENS(inst_tasks, &new_solution, old_solution, 1); // 1 for dynamic, 0 for restart
     }
 
     printf("new_solution: %d\n", new_solution.TotalCost);

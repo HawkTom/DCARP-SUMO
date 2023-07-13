@@ -21,15 +21,18 @@ int MAENS(const Task *inst_tasks, CARPInd *MAENSolution, CARPInd InitSolution, c
     CARPInd pop[MAX_TOTALSIZE];
     CARPInd best_fsb_solution;
     best_fsb_solution.TotalCost = INF;
-    indi_copy(&best_fsb_solution, &InitSolution);
+    if (new_tasks_list[0] == 0)
+    {
+        indi_copy(&best_fsb_solution, &InitSolution);
+    }
     // initialization
     int tmp_popsize = 0;
     int algorithm_best= INF;
     if (dynamic_type==DYNMAIC) {
 
         // use inherited solutions
-       repair_old_solutions exp(inst_tasks, InitSolution);
-        // insert_new_tasks exp(inst_tasks);
+    //    repair_old_solutions exp(inst_tasks, InitSolution);
+        insert_new_tasks exp(inst_tasks);
 
         tmp_popsize = 0;
         int old_sol_idx = 0;

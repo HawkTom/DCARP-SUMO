@@ -9,16 +9,11 @@ from utils.carp import cal_route_cost_with_vt
 import numpy as np
 from utils.plot_net_selection import plot_route
 
-ADD_TASK_FLAG = False
+ADD_TASK_FLAG = True
 
 class sumo_dcarp_init():
 
-    # pre-defined new tasks
-    # TODO: put new tasks in the seperate scenario file => NOT NECCESSARY
-    new_tasks_whole = [3810,5933,1001,5831,5917,1830,3728,278,2788,4590,4729,942,3617,4041,2618,554,5545,2981,2721,354]
-    busy_area = [6513,5609,2056,540,3935,2220,1199,3474,4086,3685,4340,4200,3389,5355,2901,3399,1606,5114,178,4063]
-    not_busy_area = [5708,941,1411,6288,5831,6400,1832,5752,2618,6582,1326,5081,6521,5707,5343,4176,483,2786,498,1361]
-
+    
     @classmethod
     def init(self, filepath):
         fs = sumo_dcarp_init.init_solution(filepath)
@@ -168,7 +163,7 @@ class sumo_dcarp():
             
         fs.complete()
 
-        if ADD_TASK_FLAG and instance <= 5 and version == "dynamic":
+        if ADD_TASK_FLAG and instance>1 and instance <= 5 and version == "dynamic":
             np.random.seed(int(time.time()))
             added_tasks = []
             # according to road's properties to add tasks
